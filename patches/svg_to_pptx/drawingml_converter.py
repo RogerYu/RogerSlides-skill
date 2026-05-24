@@ -553,6 +553,31 @@ def convert_svg_to_slide_shapes(
         bg_right = bg_x + bg_w
         bg_bottom = bg_y + bg_h
 
+        # Skip container rects: if other large rects (wider than accent bars)
+        # exist within the candidate's bounds, this is a container structure,
+        # not a simple card. Merging it would absorb text that should stay
+        # above nested header bars, breaking z-order.
+        has_nested_structural_rect = False
+        for j, sib in enumerate(root_children):
+            if j == i or j in absorbed_indices:
+                continue
+            tag_j = sib.tag.replace(f'{{{SVG_NS}}}', '')
+            if tag_j != 'rect':
+                continue
+            sib_w = _f(sib.get('width'))
+            sib_h = _f(sib.get('height'))
+            if sib_w <= 10 or sib_h <= 10:
+                continue
+            sib_x = _f(sib.get('x'))
+            sib_y = _f(sib.get('y'))
+            if (sib_x >= bg_x and sib_y >= bg_y
+                    and sib_x + sib_w <= bg_right
+                    and sib_y + sib_h <= bg_bottom):
+                has_nested_structural_rect = True
+                break
+        if has_nested_structural_rect:
+            continue
+
         accent_bar = None
         accent_indices: list[int] = []
         for j, sib in enumerate(root_children):
@@ -598,7 +623,6 @@ def convert_svg_to_slide_shapes(
             if len(aligned) >= 2:
                 card_text_elems = aligned
                 card_text_indices = aligned_indices
-                card_text_elems.append(sib)
 
         if card_text_elems:
             group = {
