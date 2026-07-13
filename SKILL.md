@@ -638,7 +638,7 @@ Framework/大纲只是骨架，**内容填充必须通过搜索补充实质性�
 
 ```
 Endpoint: https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
-API Key: sk-YOUR_DASHSCOPE_API_KEY  (存于 memory/reference_dashscope_api.md)
+API Key: 从环境变量 DASHSCOPE_API_KEY 读取（存于 ~/.ppt-master/.env，勿硬编码进文件）
 Model: kimi-k2.6
 ```
 
@@ -697,8 +697,10 @@ img_b64 = base64.b64encode(buf.getvalue()).decode()
 **⚠ 核心教训：串行 23 页每页 20s = 460s，并行 5 线程 = 62s，7x 加速。**不要串行逐页跑。
 
 ```python
+import os, requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+# DASHSCOPE_API_KEY 从环境变量读取，存于 ~/.ppt-master/.env，勿硬编码进文件
 qa_prompt = '''你是投研PPT视觉质检专家。严格质检此PPT，只报问题：
 1.文字溢出 2.对齐 3.空白>20% 4.图表可读性 5.CICC Logo/分隔线 6.文字缺失
 JSON:{"issues":[{"type":"","description":"","severity":"high/medium/low"}]}
@@ -715,7 +717,7 @@ def qa_one(slide_num):
         "max_tokens": 512, "temperature": 0.1
     }
     headers = {
-        "Authorization": f"Bearer sk-YOUR_DASHSCOPE_API_KEY",
+        "Authorization": f"Bearer {os.environ['DASHSCOPE_API_KEY']}",
         "Content-Type": "application/json"
     }
     resp = requests.post(
