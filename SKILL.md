@@ -2,7 +2,7 @@
 name: RogerSlides
 description: >
   于钟海 CICC 卖方研报 PPT 风格层。在 ppt-master 生成引擎之上叠加中金品牌约束、
-  投研内容规范、Slop 黑名单、三层质量门禁和 GLM-5V-Turbo 视觉质检。
+  投研内容规范、Slop 黑名单、三层质量门禁和 Kimi K2.6 视觉质检。
   触发词："slides", "deck", "pptx", "路演", "PPT", "研究报告", "做一页",
   "做一份"，或任何要求生成投研演示文稿的请求。
   必须与 ppt-master 配合使用——本 Skill 不独立生成 PPTX，而是覆盖 ppt-master 的
@@ -165,6 +165,8 @@ PPT是报告，不是bullet list。所有文字区必须用**完整段落**，�
 **Logo 文件**: `~/Desktop/Claude/CICC Logo.jpg`
 
 **位置**: 每一页右上角。Content slides、section dividers、cover slides 均须包含。
+
+**等距原则**：logo上沿到canvas顶边距离 = logo右边到canvas右边距离。这是logo最舒服的视觉位置。4:3画布(1024×768)下：CICC Logo宽高比约5:1，height=45px时width≈225px，因此right=10px, top=10px即可满足等距。
 
 **尺寸**: 宽 ~1.1"–1.4", 高 ~0.18"–0.22"。位置: x≈8.2"–9.2", y≈0.1"。
 
@@ -616,110 +618,162 @@ Framework/大纲只是骨架，**内容填充必须通过搜索补充实质性�
 
 ---
 
-## 14. Visual QA Protocol (GLM-5V-Turbo)
+## 14. Visual QA Protocol (Kimi K2.6 via DashScope)
 
 在 ppt-master Post-processing & Export（Step 7）完成后、交付前，执行视觉质检。
 
 ### ⚠ 核心教训：Visual QA 是最后防线，标准必须极高
 
-过往错误：GLM-5V-Turbo 用宽松 prompt 给出 60+/70 分，但实际输出有大量布局缺陷——字体不统一、对齐松散、空白过多、图表侵入、字号层级混乱。根本原因是 QA prompt 问的是"有没有严重问题"（二元判断），而不是"是否达到专业投研PPT水准"（质量判断）。**不能把"没有FAIL"等同于"质量达标"。**
+过往错误：用宽松 prompt 给出 60+/70 分，但实际输出有大量布局缺陷。根本原因是 QA prompt 问的是"有没有严重问题"（二元判断），而不是"是否达到专业投研PPT水准"（质量判断）。**不能把"没有FAIL"等同于"质量达标"。**
 
-### Step 1: PPTX → 图片
+### 为什么用 Kimi K2.6 而不是 GLM-5V-Turbo
 
-```bash
-# LibreOffice headless 转 PDF（比直接转 PNG 更可靠，支持多页）
-/Applications/LibreOffice.app/Contents/MacOS/soffice --headless --convert-to pdf --outdir <project>/exports/ <project>/exports/<deck>.pptx
+2026年6月实测结论：
+- **MMMU-Pro benchmark**：Kimi K2.5 得分 78.5，Qwen2.5-VL-72B 只有 51.1，Kimi 视觉能力全面碾压
+- **Zhipu API Key 经常认证失败**（401），DashScope API 稳定可用
+- **Kimi K2.6 支持 vision**（base64图片输入），时延 ~10-20s/页
+- GLM-5V-Turbo 是思考模型，需读 reasoning_content，解析复杂；Kimi 直接返回 content
 
-# PyMuPDF 逐页提取 PNG（2x 缩放保证清晰度）
-source ~/Desktop/Claude/.venv/bin/activate
-python3 -c "
-import fitz, os
-doc = fitz.open('<deck>.pdf')
-os.makedirs('qa_round1', exist_ok=True)
-for i in range(len(doc)):
-    pix = doc[i].get_pixmap(matrix=fitz.Matrix(2,2))
-    pix.save(f'qa_round1/slide_{i+1:02d}.png')
-doc.close()
-"
-```
-
-### Step 2: GLM-5V-Turbo 逐页检查（严格版 prompt）
-
-对每页图片，调用 GLM-5V-Turbo，使用以下 prompt。**注意：GLM-5V-Turbo 是思考模型，content 字段可能为空，需读取 reasoning_content。**
+### API 配置
 
 ```
-你是顶级投行PPT的视觉设计总监，不是宽松的质检员。你的标准是：如果这页PPT放在中金/高盛/摩根士丹利的投研报告里，会不会被合伙人说"这太丑了，重做"？
-
-逐项检查，每项严格 PASS 或 FAIL：
-
-A. 字体统一性：
-   - 整页是否只有黑体(CJK)和Arial(Latin)？有没有微软雅黑、宋体、SimSun混入？
-   - 同一级别的文字字号是否完全一致？（如所有图表标题同字号、所有正文同字号）
-
-B. Packed密度：
-   - 内容是否像专业投研PPT那样塞得满满当当？还是像AI生成的草图一样松散？
-   - 元素之间的间距是否紧凑一致？有没有不该有的空隙？
-   - 可用内容区每一个角落是否都有内容？
-
-C. 对齐精度：
-   - 左右并排的元素，上边缘是否严格对齐、下边缘是否严格对齐？
-   - 上下堆叠的元素，左边缘是否严格对齐？
-   - 整页看起来是不是像填在一个看不见的网格里？还是歪歪扭扭的AI风？
-
-D. 图表边界：
-   - 左右并排的图表，水平边界是否严格分离？左图有没有侵入右图区域？
-   - 图表的标题是否左对齐（不是居中）？
-   - 图表标题下方是否有灰色衬线（thin gray line）？
-
-E. 字号层级：
-   - 关键判断/核心结论的字号是否明显大于普通正文？
-   - 同级别的元素字号是否一致？
-   - 有没有奇怪的字号——比如某行字明显偏小或偏大？
-
-F. 色块滥用：
-   - 数字callout（如倍数、百分比）是否不需要额外的色块衬底？
-   - 有没有看起来多余的色块——去掉会更干净的？
-
-G. 图例位置：
-   - 图例是否放在图表右侧或上方空白处，而不是与数据区重叠？
-
-输出格式：
-A:[PASS/FAIL] B:[PASS/FAIL] C:[PASS/FAIL] D:[PASS/FAIL] E:[PASS/FAIL] F:[PASS/FAIL] G:[PASS/FAIL]
-总计：X/7 PASS
-FAIL项详细说明：（每项一句话）
+Endpoint: https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
+API Key: sk-YOUR_DASHSCOPE_API_KEY  (存于 memory/reference_dashscope_api.md)
+Model: kimi-k2.6
 ```
 
-### Step 3: GLM-5V-Turbo API 调用
+### Step 1: SVG → PNG（关键：字体替换）
 
-```bash
-# GLM-5V-Turbo 是思考模型，max_tokens 需设 800+，且需读 reasoning_content
-curl -s https://open.bigmodel.cn/api/paas/v4/chat/completions \
-  -H "Authorization: Bearer $ZHIPU_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "glm-5v-turbo",
-    "messages": [{
-      "role": "user",
-      "content": [
-        {"type": "image_url", "image_url": {"url": "data:image/png;base64,<BASE64_IMAGE>"}},
-        {"type": "text", "text": "<QA_PROMPT_ABOVE>"}
-      ]
-    }],
-    "max_tokens": 800
-  }'
+**⚠ 核心教训：SimHei 字体在 macOS 上无法被 cairosvg 渲染！**必须先替换为系统中文字体再转 PNG，否则中文全部显示为方框。
 
-# 解析时注意：content 字段可能为空，需读 choices[0].message.reasoning_content
+```python
+import cairosvg, os
+
+svg_dir = "<project>/svg_final"
+qa_dir = "<project>/qa"
+os.makedirs(qa_dir, exist_ok=True)
+
+# ⚠ 必须替换字体！SimHei 在 macOS 上 cairosvg 找不到，中文会变方框
+for f in sorted(os.listdir(svg_dir)):
+    if not f.endswith('.svg'):
+        continue
+    with open(os.path.join(svg_dir, f), 'r') as fh:
+        content = fh.read()
+    # 替换 SimHei 为 macOS 可用的中文字体
+    content = content.replace(
+        'SimHei, Arial, sans-serif',
+        'Heiti SC, PingFang SC, Arial, sans-serif'
+    )
+    temp_svg = os.path.join(qa_dir, f"temp_{f}")
+    with open(temp_svg, 'w') as fh:
+        fh.write(content)
+    cairosvg.svg2png(url=temp_svg, write_to=os.path.join(qa_dir, f.replace('.svg', '.png')), scale=2)
 ```
 
-### Step 4: Fix and re-verify
+**字体说明**：
+- SVG 中写 `SimHei` 是给 PPTX 用的（Windows/Office 有 SimHei）
+- PNG QA 时替换为 `Heiti SC` 或 `PingFang SC`（macOS 可用）
+- **SVG 源文件保持 SimHei 不变**，只在 QA 转 PNG 时临时替换
 
-- 有 FAIL 项 → 修改 SVG 中对应问题 → 重新跑 finalize_svg + svg_to_pptx → 重新转图 → 重跑 QA
+### Step 2: 图片压缩（必做！）
+
+**⚠ 核心教训：原始 PNG base64 可能 500KB+，直接发给 API 会超时或被限流。**必须压缩到 800px 宽 JPEG。
+
+```python
+from PIL import Image
+import io, base64
+
+img = Image.open(png_path).convert("RGB")  # RGBA→RGB，否则 JPEG 保存报错
+w, h = img.size
+if w > 800:
+    img = img.resize((800, int(h * 800 / w)), Image.LANCZOS)
+buf = io.BytesIO()
+img.save(buf, format="JPEG", quality=80)  # ~46KB，API 可承受
+img_b64 = base64.b64encode(buf.getvalue()).decode()
+```
+
+### Step 3: 并行 QA（5线程，必做！）
+
+**⚠ 核心教训：串行 23 页每页 20s = 460s，并行 5 线程 = 62s，7x 加速。**不要串行逐页跑。
+
+```python
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+qa_prompt = '''你是投研PPT视觉质检专家。严格质检此PPT，只报问题：
+1.文字溢出 2.对齐 3.空白>20% 4.图表可读性 5.CICC Logo/分隔线 6.文字缺失
+JSON:{"issues":[{"type":"","description":"","severity":"high/medium/low"}]}
+无问题则{"issues":[]}'''
+
+def qa_one(slide_num):
+    # ... compress image (Step 2) ...
+    payload = {
+        "model": "kimi-k2.6",
+        "messages": [{"role": "user", "content": [
+            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
+            {"type": "text", "text": qa_prompt}
+        ]}],
+        "max_tokens": 512, "temperature": 0.1
+    }
+    headers = {
+        "Authorization": f"Bearer sk-YOUR_DASHSCOPE_API_KEY",
+        "Content-Type": "application/json"
+    }
+    resp = requests.post(
+        "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+        headers=headers, json=payload, timeout=90
+    )
+    # ... parse JSON response ...
+
+with ThreadPoolExecutor(max_workers=5) as executor:
+    futures = {executor.submit(qa_one, i): i for i in range(1, total_slides+1)}
+    for future in as_completed(futures):
+        result = future.result()
+        # ... process result ...
+```
+
+**为什么 5 线程**：DashScope API 限流窗口内 5 个并发稳定，10+ 开始有 429 错误。
+
+### Step 4: 严格版 QA Prompt（7维度）
+
+当需要更严格的质量检查时，使用以下 prompt：
+
+```
+你是顶级投行PPT的视觉设计总监。标准：这页PPT放在中金/高盛投研报告里，会不会被合伙人说"重做"？
+
+逐项 PASS/FAIL：
+A. 字体统一性：整页只有黑体(CJK)+Arial(Latin)？同级字号一致？
+B. Packed密度：内容塞满？间距紧凑？角落无浪费？
+C. 对齐精度：并排元素上下对齐？堆叠元素左对齐？像填在网格里？
+D. 图表边界：并排图表水平分离？标题左对齐+灰衬线？
+E. 字号层级：核心结论字号>正文？同级一致？
+F. 色块滥用：数字callout无背景色块？多余色块去掉更干净？
+G. 图例位置：图例在右侧/上方，不与数据区重叠？
+
+输出：A:[PASS/FAIL] B-G同 总计X/7 PASS
+FAIL项详细说明
+```
+
+### Step 5: Fix and re-verify
+
+- 有 High severity → 修改 SVG → 重跑 finalize_svg + svg_to_pptx → 重跑 QA
+- **Medium severity 图表可读性问题需区分**：
+  - 图片在 800px 压缩后模糊 ≠ PPTX 中模糊，仅修确认在 PPTX 中也模糊的
+  - 原图分辨率不足 → 需要换高清源图或重绘为 SVG
 - 最多 3 轮 Visual QA
-- 3 轮后仍有 FAIL → 报告给用户具体问题，由用户决定是否继续
 - **每轮 QA 后必须自问**：我是不是又在"差不多就行了"？标准够不够高？
 
----
+### QA 常见问题速查表
 
+| 问题类型 | 根因 | 修复方法 |
+|---------|------|---------|
+| 中文显示为方框 | macOS 无 SimHei，cairosvg 渲染失败 | QA转PNG时替换为 Heiti SC，SVG源文件保持SimHei |
+| API 401/超时 | 图片base64过大，或并发过高 | 压缩到800px JPEG quality=80，5线程并行 |
+| RGBA→JPEG 报错 | PIL 不支持 RGBA 直接存 JPEG | 先 `.convert("RGB")` |
+| 大面积空白 | 图片 preserveAspectRatio 留白 | 用 `xMinYMin slice` 或手动调 width/height |
+| 文字溢出/截断 | 正文过长超出容器 | 缩短文字或加大容器高度 |
+| 图表模糊(QA中) | 800px压缩损失，非PPTX问题 | 仅修确认在PPTX中也模糊的；PPTX用SimHei渲染正常 |
+
+---
 ## 15. Revision Protocol
 
 当用户对已生成的 PPTX 提出修改要求时：
@@ -818,6 +872,63 @@ ppt-master 会自动将品牌模板的颜色、字体、Logo 注入项目，Roge
 - 禁止数字callout加色块背景
 - 禁止飞轮/循环图箭头不闭合
 - 禁止框内内容不居中
+
+---
+
+## 27. 实战经验（2026-06 AI框架培训30页，多轮大改复盘）
+
+### 27.1 截图根治：提取原PPT图表对象，不要整页截图
+
+原PPT图表是图片对象（python-pptx `shape_type==13`），提取出来干净无logo/source。整页截图（删header/footer）删不干净，用户会看到残留logo/source反复返工。
+
+提取脚本：`for sh in slide.shapes: if sh.shape_type==13: open(fn,'wb').write(sh.image.blob)`，跳过小logo（`w<200*9525 and h<80*9525`）。
+
+### 27.2 资料来源：内部PPT不写，只写"中金公司研究部"+具体来源
+
+未公开发表的内部PPT（Reshuffle/启示录/AI Outlook）不能写在资料来源。写"中金公司研究部"+图的原始数据来源（OpenRouter/Ramp AI/METR/Stack Overflow等）。用原PPT图的页，source写原图对应slide的来源。
+
+### 27.3 图表选择：原报告有图优先贴原图，手画仅补充
+
+原报告图表专业准确，手画易出错（意思不对/比例错/丑）。贴原图前用zai确认图内容（slide文字推断不可靠，曾把"模型采用率折线"误当"收入饼图"、"Codex对比柱"误当"ARR曲线"）。zai一次一张，prompt问"图表类型/数据/关键数字"。
+
+### 27.4 口号页禁忌：杜绝大字口号放中间
+
+用户痛恨"大字口号往中间一放"，要数据密集、论点论据论证。breathing页也要有数据支撑。好的breathing：大数字+一句解读+来源，非空洞口号。
+
+### 27.5 图表类型与比例
+
+- 成本拆解用饼图（占比），不用柱图
+- 金字塔/漏斗比例正确：值大的层必须宽（4万亿块不能比6000亿块小）
+- 纵轴范围合理：数据0-50%不要画到100%（线不明显）
+- 横向条形按值比例最清晰
+
+### 27.6 packed：左右顶到边
+
+用户表扬P16四卡"左右顶到头非常漂亮"，要求其他页参考。示意图/卡片/产业链图左右顶到边（40-984），撑满最好看。
+
+### 27.7 两图并排统一容器
+
+并排两图统一容器（相同width×height），方正对仗。容器浅灰rect底+图meet居中，大小一致。
+
+### 27.8 封面：官方背景+SAC编号
+
+不自创封面（深红rect），用中金官方cover背景（从原PPT提取s01_图片2 1280x720）。封面加SAC执证编号+SFC CE Ref（从原PPT封面提取）。
+
+### 27.9 Excel测算表是数据源
+
+PPT图是图片对象（提取），Excel是数据源（openpyxl读数据重绘）。原PPT没有的图表，可读Excel数据SVG重绘。
+
+### 27.10 live preview用run_in_background
+
+nohup &会被harness回收，run_in_background持续运行。server watch svg_output，改SVG自动刷新。
+
+### 27.11 口径净化（录音录像流传）
+
+只说认知不说坏话，不点名批评任何公司。具身智能等讲产业趋势+技术认知+投资方向，不讲泡沫。估值向下触发条件改中性"跟踪信号"。
+
+### 27.12 字重合
+
+大字（48px）与上方留够间距不重合，挪10px+下方相应挪。
 ```
 
 每页的修改指令格式：
@@ -857,14 +968,20 @@ python3 finalize_svg.py <project_dir>
 python3 svg_to_pptx.py <project_dir>
 ```
 
-### Phase 4: Visual QA — 每页1个sub-agent
+### Phase 4: Visual QA — Kimi K2.6 并行5线程
 
-**严肃机构标准**：每页1个sub-agent独立做GLM-5V-Turbo QA，不合并页面。
+**严肃机构标准**：用 Kimi K2.6 (DashScope API) 并行做 Visual QA，5个并发线程。
 
-每个QA sub-agent：
-1. 拿到该页PNG图片
-2. 调用GLM-5V-Turbo，使用§14的7维度严格prompt
-3. 返回 A-G 各维度 PASS/FAIL + 详细说明
+QA 执行流程：
+1. SVG → PNG：替换 SimHei→Heiti SC，cairosvg 渲染 2x scale
+2. PNG 压缩：800px JPEG quality=80（原始 PNG 太大会导致 API 超时）
+3. 并行调用 kimi-k2.6，5线程，每页 ~10-20s，23页总计 ~60-90s
+4. 解析 JSON 结果，汇总 High/Medium/Low 问题
+
+**核心教训**：
+- 不要串行逐页跑，23页×20s = 460s；5线程并行 = 62s（7x加速）
+- 不要发原始 PNG base64（500KB+），压缩到 ~46KB JPEG 才稳定
+- 不要忘记字体替换，否则中文全变方框，QA 结果全是假阳性
 
 主agent汇总所有QA结果，识别需要修改的页面。
 
@@ -888,7 +1005,7 @@ python3 svg_to_pptx.py <project_dir>
 | 场景 | 串行耗时 | 并行耗时 | 加速比 |
 |------|---------|---------|-------|
 | 9页SVG修改 | ~9轮交互 | ~2轮（5+4） | ~4.5x |
-| 9页Visual QA | ~9次API调用串行 | ~2轮并行 | ~4.5x |
+| 23页Visual QA (Kimi K2.6) | ~460s (20s×23) | ~62s (5线程) | ~7x |
 | 修改+QA合计 | ~18轮 | ~6轮 | ~3x |
 
 ---
@@ -1029,3 +1146,164 @@ Fork 当前 RogerSlides 为 RogerSlides two，用 HTML→PPTX 管线重构。与
 5. **同层级字号严格一致**：所有正文 12-13px，所有注释 10-11px，所有图表标题 14px。禁止"差不多的字号"
 6. **卡片 accent bar**：width=4px，紧跟背景 rect 左边缘
 7. **结论框**：fill=#FFF5F5 + 4px #640000 left bar，是 CICC 投研 PPT 最常见的视觉模式
+
+## 6.5 Chart-First Layout — 图表优先布局铁律
+
+**这是投研PPT最核心的布局决策原则，违反即导致"页面铺不满"。**
+
+### 执行顺序（必须严格遵循）
+
+```
+Step 1: 清点本页图表资源
+  → 几张图？每张长宽比？内容复杂度？
+
+Step 2: 图表优化决策
+  → 裁剪空白？拆分子图？重绘为SVG？
+  （见下方决策矩阵）
+
+Step 3: 放置图表到最优位置和尺寸
+  → 图表内文字最小8-9pt可读
+  → 图表之间间距15-20px
+  → 图表标题左对齐 + 灰色衬线
+
+Step 4: 计算剩余空间，填充文字
+  → 正文段落（粗体首句+常规展开）
+  → 核心数字callout
+  → 结论框（#FFF5F5 + 4px #640000 left bar）
+  → 补充卡片/表格
+
+Step 5: 检查packed密度
+  → 可用内容区不得有>20%连续空白
+  → 有空白→加大图表、增加文字、加补充数据
+```
+
+### 图表优化决策矩阵
+
+| 图表特征 | 优化手段 | 操作 |
+|---------|---------|------|
+| 上下有大量空白像素 | **裁剪** | PIL自动trim空白行 |
+| 多个子图拼合在一张图中 | **拆分** | 识别边界→切为独立图→平行放置 |
+| 简单柱状图/折线图/饼图 | **重绘为SVG** | 数据点少，SVG更清晰+尺寸可控 |
+| 表格（财务/对比） | **重绘为SVG** | SVG表格灵活调整列宽，无固定长宽比困扰 |
+| 产品照片/实物图 | **嵌入原图** | 无法重绘 |
+| 复杂示意图/流程图/架构图 | **嵌入原图** | 重绘成本远高于收益 |
+| 双Y轴复合图 | **看情况** | 数据简单→重绘；数据密集→嵌入 |
+
+### McKinsey金字塔布局法则
+
+**左右双栏**（最常用，占80%内容页）：
+- **不对称**：可左宽右窄(4:6)或右宽左窄(6:4)
+- **逻辑流向**：左栏(前提/数据)→右栏(推导/图表)→Lead结论框
+- 左栏放文字/卡片/callout，右栏放图表
+- 双栏间隔20-30px
+
+**上下布局**（宽幅图片适用）：
+- 图片扁平（长宽比>1.5）时，上下叠放+右侧Textbox说明
+- 或自上而下逻辑推导：标题→callout→图表→结论框
+
+**三栏并排**（多个平行概念）：
+- 三张子图/三个产品卡片等宽并排
+- 各栏宽度=(内容区宽-2×间隔)/3
+
+### 长宽比→布局映射
+
+| 图表长宽比 | 推荐布局 | 说明 |
+|-----------|---------|------|
+| >2.0（超宽） | 顶部全宽 + 文字在下 | 图表横跨页面宽度 |
+| 1.5-2.0（宽幅） | 左右分栏，图表占55-65% | 最常见的投研图表比例 |
+| 1.0-1.5（标准） | 左右分栏，图表占50-60% | |
+| <1.0（近方/竖长） | 左侧窄栏或上下布局 | 考虑裁剪或重绘 |
+
+### 图片裁剪自动化
+
+生成SVG前，对所有需要嵌入的图片执行自动裁剪：
+
+```python
+from PIL import Image, ImageChops
+def auto_crop(image_path, output_path, padding=10):
+    img = Image.open(image_path)
+    bg = Image.new(img.mode, img.size, img.getpixel((0,0)))
+    diff = ImageChops.difference(img, bg)
+    bbox = diff.getbbox()
+    if bbox:
+        cropped = img.crop(bbox)
+        # Add small padding
+        from PIL import ImageOps
+        cropped = ImageOps.expand(cropped, padding, fill=(255,255,255))
+        cropped.save(output_path)
+```
+
+### 为什么AI生成的PPT总是"松散"？
+
+LLM默认先写文字（这是它擅长的），然后把图表当作"附件"塞进去。但投研PPT的逻辑是反过来的——**图表是主角，文字是解说词**。先定主角位置，再安排解说词的位置。此原则必须在Executor阶段的每页SVG生成前严格执行。
+
+---
+
+## 24. Render Consistency — card group 坐标丢失（2026-06-21 踩坑，影响深远）
+
+### 现象
+SVG 预览界面（浏览器按坐标精确渲染）非常漂亮，但导出到 PPTX/PDF/WPS 后文字整体**向上向右偏移、行距挤、格子没填满、跨 card 不对齐**。Roger 称之为"渲染不一致"。
+
+### 根因
+svg_to_pptx 的 `convert_card_group` 分支（rect+text 卡片合并成单个 shape）默认**丢弃了 text 元素的 x/y 坐标**，四处在丢失信息：
+
+| 丢失 | 默认行为 | 后果 |
+|------|---------|------|
+| text 的 y（首行） | `tIns=0` + `anchor="t"`，文字贴 rect 顶 | 向上 |
+| text 的 y（行间距） | 固定 `lnSpc=1.3*fs` 堆叠 | 行距紧、格子没填满 |
+| text 的 x（居中） | `algn="l"` 硬编码左对齐 | 居中文字向右 |
+| text 的 x（左边界） | `left_inset=min(text x)`，居中文字的 x（中心点）被当左边界 | 居中区被推右 |
+
+card group 的设计目的是"宽度锁死 rect、文字自动换行防溢出"，但代价是丢失纵向坐标——而投研 PPT 几乎每页都是 rect+text 卡片结构，所以这是**全局性**问题。
+
+### 修复（`drawingml_elements.py` → `convert_card_group`）
+
+1. **tIns = 首个 text.y − rect.y − 0.85\*font_size**：和独立 text 的 `box_y = y − 0.85*fs` 统一逻辑，card 内首行文字顶 = 独立 text 文字顶，**跨 card 对齐**。
+2. **algn 按 text-anchor 动态**：`start→l, middle→ctr, end→r`。居中文字真正居中。
+3. **left_inset 只取 start-anchor text 的 x**：middle/end 文字不参与 left_inset 计算，居中文字不被推右。
+4. **spcBef = (当前 text.y − 前 text.y) − 1.3\*前 fs**：保留每个 text 的设计 y 间距，行距从固定 1.3fs 变成设计间距，**格子填满、行距松**。
+
+### 验证方法（像素级，比视觉模型猜更硬）
+用 PIL 检测渲染图里文字深色像素的 bbox，和色块框坐标对比，算实际偏移。注意颜色阈值：橙色类别名 `#E99753`（R=233）和灰色说明 `#8A90A5`（R=138）都不满足 `<120` 的深色阈值，要按实际文字颜色调阈值，否则漏检。
+
+### 铁律：改 svg_to_pptx 包代码后必须 `rm -rf __pycache__`
+Python 加载 `__pycache__` 旧字节码，改了 `.py` 不清缓存则改动**完全不生效**（表现为改系数后测量值不变）。每次改 `skills/ppt-master/scripts/svg_to_pptx/` 下任何文件，必须 `rm -rf __pycache__` 再重转。
+
+### 预览必须走 soffice→PDF→pdftoppm
+cairosvg 不渲染 `<image>` 引用的外部 jpg（logo 缺失）、字体度量也不准。真实预览只有 `soffice --headless --convert-to pdf` + `pdftoppm -png`。cairosvg 只能看 SVG 结构，不能当渲染效果判据。
+
+### 沉淀结论
+**渲染不一致不是"LibreOffice/WPS 兼容性"这种泛泛问题，而是转换器在 card 合并时丢失了 SVG 坐标。** 修转换器一处，惠及所有 card 页 + 所有未来项目。诊断时先用 PIL 像素测量定位偏移方向和量，再读转换器源码找坐标换算逻辑，不要靠猜。
+
+---
+
+## 25. 卖方报告体 — PPT 是报告不是提词器
+
+### 核心原则
+卖方 PPT 是**报告**，不是提词器。光看 PPT 不听演讲者说，也能看懂完整逻辑和结论。文字要**丰满饱满**，每个要点是完整论述句，带数据、因果、投资含义——不是关键词、highlights、抽象短词。
+
+### AI 的"惜字如金"病
+LLM 默认倾向用简单、highlight、抽象的词表达，PPT 只起提示作用。这是要克服的反模式。一旦克服"惜字如金"，文字饱满度上去，留白问题自然消失（格子被论述填满）。
+
+### 执行
+- 每个要点：从短词 → 完整论述句（"控制力最强" → "本地部署控制力最强，能直接读写本地文件、调用本地脚本和 MCP，延迟最低，是日常改 skill、调脚本、生成 PPT 的主力形态"）
+- 保留 bold 引导句（核心结论）+ regular 展开（数据/因果/含义）
+- 禁止"关键词 | 关键词 | 关键词"碎片化，必须完整句子
+
+---
+
+## 26. QA 认知 — packed 程度与对齐敏锐度
+
+### packed 程度认知
+QA 时要对每个 textbox 的 packed 程度有判断：card 内文字是否**舒适填满格子**（行距松、不留大空、不挤一起）。发现"格子没填满"或"文字挤在上部"要主动提出，不能等用户发现。
+
+### 对齐敏锐度
+代码里两个元素，写代码时可能不知道它们应该在同一层级对齐，但**视觉上一眼能看出应该对齐**。QA 要主动判断：
+- 同一行的类别名和内容（如 P15 "LLM推理" 和右边的 "GLM..." 应同水平）
+- 跨 card 的同类文字（多个 card 的标题应顶对齐）
+- 左右两栏的标题、底部应齐平
+
+不依赖代码注释或 SVG 坐标判断"应该对齐"——用视觉常识。代码里 x/y 不同不代表不该对齐（可能字号不同导致 baseline 不同，但视觉应同顶/同基线）。
+
+### QA 不是"没 FAIL 就达标"
+宽松 prompt 问"有没有严重问题"会得 60/70 分但实际有大量布局缺陷。QA 要用严格 7 维度 prompt（字体统一/packed/对齐/边界/字号层级/色块/文字完整性），且对"渲染一致性"单独验证（PIL 像素测量，不靠视觉模型猜）。
