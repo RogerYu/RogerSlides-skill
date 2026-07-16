@@ -1,15 +1,15 @@
 ---
 name: RogerSlides
 description: >
-  于钟海 CICC 卖方研报 PPT 风格层。在 ppt-master 生成引擎之上叠加中金品牌约束、
-  投研内容规范、Slop 黑名单、三层质量门禁和 Kimi K2.6 视觉质检。
+  中金 CICC 卖方研报 PPT 风格层。在 ppt-master 生成引擎之上叠加中金品牌约束、
+  投研内容规范、Slop 黑名单、三层质量门禁和 视觉质检。
   触发词："slides", "deck", "pptx", "路演", "PPT", "研究报告", "做一页",
   "做一份"，或任何要求生成投研演示文稿的请求。
   必须与 ppt-master 配合使用——本 Skill 不独立生成 PPTX，而是覆盖 ppt-master 的
   风格决策和质量检查。
 ---
 
-# RogerSlides v2 — 于钟海 CICC 投研 PPT 风格层
+# RogerSlides — 中金投研 PPT 风格层
 
 ## 前置依赖
 
@@ -23,7 +23,7 @@ git clone https://github.com/hugohe3/ppt-master.git
 pip install -r requirements.txt
 ```
 
-当 Roger 请求生成 PPT 时，**先走 ppt-master 的完整工作流**（Step 1–7），但在 Strategist 阶段（Step 4）和 Executor 阶段（Step 6）覆盖本 Skill 的规则。
+当用户请求生成 PPT 时，**先走 ppt-master 的完整工作流**（Step 1–7），但在 Strategist 阶段（Step 4）和 Executor 阶段（Step 6）覆盖本 Skill 的规则。
 
 ---
 
@@ -115,7 +115,7 @@ CICC Brand Colors (from CICC PPTX template 2021-04-06):
 
 ### Text emphasis convention
 
-Roger 的正文段遵循 **两阶段粗体模式**：首句 bold（核心结论），后续 regular（支撑数据和上下文）。
+正文段遵循 **两阶段粗体模式**：首句 bold（核心结论），后续 regular（支撑数据和上下文）。
 
 > **OpenAI全面加速商业化，收入预期继续抬高。** OpenAI在2025年下半年的算力建设以及商业化层面的动作都相当激进，因此……
 
@@ -223,7 +223,7 @@ PPT是报告，不是bullet list。所有文字区必须用**完整段落**，�
 │ 副标题                                            │
 │                                                   │
 │ YYYY.MM  中金公司研究部                            │
-│ 于钟海  执行总经理，计算机行业首席分析师            │
+│ ［分析师姓名］  执行总经理，［行业］首席分析师            │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -289,68 +289,32 @@ Framework/大纲只是骨架，**内容填充必须通过搜索补充实质性�
 
 ### 搜索工具优先级
 
-**核心原则：区分公开信息 vs 私有数据，选择正确通道。**
+**核心原则：区分专有数据 vs 公开信息，选择正确通道。**
 
 | 数据类型 | 推荐通道 | 示例 |
 |---------|---------|------|
-| **公司特定信息**（财务、估值、盈利预测、公告） | **Private data 优先** | 阿里Capex、DeepSeek估值、MiniMax营收 |
-| **行业指标**（增速、份额、市场规模） | **Private data 优先** | AI推理Token消耗、中国MaaS ARR |
-| **卖方观点/调研纪要** | **Private data 优先** | 中金研报、3C计算机纪要 |
-| **通用宏观/技术趋势** | Public search 即可 | Chatbot Arena排名、Stanford HAI报告 |
-| **学术论文/开源项目** | Public search 即可 | arxiv论文、GitHub数据 |
-| **新闻/事件** | Public search 即可 | 产品发布、融资新闻 |
+| **公司特定信息**（财务、估值、盈利预测、公告） | 专有数据源优先 | 阿里Capex、DeepSeek估值、MiniMax营收 |
+| **行业指标**（增速、份额、市场规模） | 专有数据源优先 | AI推理Token消耗、中国MaaS ARR |
+| **卖方观点/调研纪要** | 专有数据源优先 | 中金研报、3C计算机纪要 |
+| **通用宏观/技术趋势** | 公开搜索即可 | Chatbot Arena排名、Stanford HAI报告 |
+| **学术论文/开源项目** | 公开搜索即可 | arxiv论文、GitHub数据 |
+| **新闻/事件** | 公开搜索即可 | 产品发布、融资新闻 |
 
-**Private data 通道**（公司/行业/投研专有）：
+"专有数据源"指你当前环境接入的投研数据工具——投研数据库、财务模型、研报库、纪要库、知识库、云盘文档等。有什么用什么，按数据类型选对通道，不要只会公开搜索。
 
-| 优先级 | 工具 | 用途 |
-|--------|------|------|
-| 1 | 点睛 MCP (`dianjing_mcp`) | **13个子工具，必须按需选用，不要只会 web_search** |
-| 2 | AlphaPai (`alphapai-research`) | recall检索、公司一页纸、投资逻辑、业绩点评 |
-| 3 | IMA (`ima-skill`) | 卖方研报、调研纪要（3C计算机纪要库、浑水调研、长安投研） |
-| 4 | gBrain (`gbrain`) | 个人知识库（recency: strong + since 近3月） |
-| 5 | kdocs (`kdocs-cli`) | 云盘文档兜底 |
+**公开搜索**用于通用信息：网页搜索、深度研究工具（如 Tavily）。公开搜索搜出来的是公开信息，不等同于专有数据——公司 Capex、营收、估值这类要尽量走专有源。
 
-**点睛 MCP 子工具详解**（13个，按场景选用）：
-
-| 子工具 | 类型 | 用途 | 使用场景 |
-|--------|------|------|---------|
-| `fetch_cicc_report_meeting` | **Private** | 中金研报/会议搜索 | 查中金官方研报——最权威的公司/行业深度观点 |
-| `fetch_other_securities_report` | **Private** | 其他券商研报 | 非中金研报补充，交叉验证 |
-| `fetch_public_notes` | **Private** | 纪要/公告 | 公司公告原文、电话会纪要、调研纪要 |
-| `ind_data` | **Private** | 行业数据 | 行业指标具体数值（市场规模、增速、份额） |
-| `ind_search` | **Private** | 行业搜索 | 搜索行业分类和行业名称 |
-| `query_indicators_by_info_mcp` | **Private** | 指标查询（按信息） | 用关键词查行业指标（如"AI推理Token消耗量"） |
-| `query_quarter_indicators_mcp` | **Private** | 季度指标查询 | 时间序列行业数据（如季度Capex趋势） |
-| `query_stock_fin_model_data` | **Private** | 公司财务模型 | 盈利预测、收入拆分、利润表（公司特定） |
-| `query_stock_model_date` | **Private** | 模型数据日期 | 查某公司财务模型最新更新日期 |
-| `query_stock_valuation_data` | **Private** | 估值数据 | PE/PB/PS/EV/EBITDA、Forward multiples（公司特定） |
-| `web_search` | **Public** | 通用网页搜索 | **等同于公开搜索，不是Private data！最后手段** |
-
-**点睛 MCP 使用规则**：
-- `web_search` = Public search，**不算** Private data。用它搜出来的东西和点睛WebSearch/Tavily没区别。
-- 公司特定数据（Capex、营收、估值、盈利预测）→ **必须用** `query_stock_fin_model_data` + `query_stock_valuation_data`
-- 行业指标（市场规模、增速）→ **必须用** `ind_data` + `query_indicators_by_info_mcp`
-- 研报/纪要 → **必须用** `fetch_cicc_report_meeting` 或 `fetch_other_securities_report`
-- `web_search` 只在上述 Private 工具都查不到时使用，**不是默认选项**
-
-**Public search 通道**（通用信息）：
-
-| 优先级 | 工具 | 用途 |
-|--------|------|------|
-| 6 | 点睛 WebSearch | 通用网页搜索（非Private数据场景） |
-| 7 | Tavily | 深度研究（额度有限时节约） |
-
-**判断规则**：涉及具体公司名+财务数据 → 走 Private；涉及行业排名/通用趋势 → Public 即可；不确定 → **先 Private 再 Public 补充**。
+**判断规则**：涉及具体公司名+财务数据 → 先走专有数据源；涉及行业排名/通用趋势 → 公开搜索即可；不确定 → 先专有再公开补充。
 
 ### Extensive Research 原则
 
 **每一页数据密集型 slide，必须跑通所有相关数据源**，不能只搜一个就停：
 
-1. **公司数据**：dianjing_mcp (fin_model + valuation + cicc_report) → AlphaPai (公司一页纸/投资逻辑) → IMA (3C纪要库) → gBrain → kdocs → web_search
-2. **行业数据**：dianjing_mcp (ind_data + ind_search + indicators) → AlphaPai (recall) → IMA → gBrain → web_search
-3. **观点/框架**：dianjing_mcp (cicc_report + other_report) → IMA → gBrain → web_search → 学术论文
+1. **公司数据**：专有数据源（财务模型/估值/研报）→ 公开搜索补充
+2. **行业数据**：专有数据源（行业指标）→ 公开搜索补充
+3. **观点/框架**：研报/纪要 → 公开搜索 → 学术论文
 
-**禁止行为**：只跑 web_search 就宣称"搜索完成"。每次搜索必须覆盖至少 2 个 Private data 源 + 1 个 Public 源，才算 extensive。
+**禁止行为**：只跑一次公开搜索就宣称"搜索完成"。每次搜索至少覆盖 2 个数据源，才算 extensive。
 
 ### 学术论文搜索
 
@@ -367,9 +331,72 @@ Framework/大纲只是骨架，**内容填充必须通过搜索补充实质性�
 
 - Framework 中只有标题/框架、无具体数据 → 必须搜索
 - 涉及市场规模、增速、份额、预测 → 必须搜索
-- 涉及公司财务/估值 → 必须搜索（dianjing_mcp 优先）
+- 涉及公司财务/估值 → 必须搜索（专有数据源优先）
 - 涉及技术对比/性能指标 → 优先搜学术论文
 - 连续 2 页以上无数据支撑 → 触发搜索补充
+
+---
+
+## 9.6 Chart Template Adaptation — 接回 ppt-master 图表模板库
+
+ppt-master 自带 71 个精致 SVG 图表模板（`${SKILL_DIR}/templates/charts/`，含 waterfall/sankey/treemap/heatmap/radar/bubble/quadrant/gantt/funnel 等），配 `charts_index.json` 选择规则和 `CHART_STYLE_GUIDE.md` 规范。**必须用这些模板，不要从零手写 SVG 图表**——手写慢、坐标易偏 10-50px、样式难统一。
+
+### Step 1: Strategist 选模板（填 spec_lock.page_charts）
+
+Strategist 阶段，每页数据图表都要选模板：读 `${SKILL_DIR}/templates/charts/charts_index.json`，拿该页内容形状（几个系列、几类、是否时间序列、是否分布）匹配 71 条 `summary` 选择规则（格式"Pick for X. Skip if Y → 用别的"），选中的模板 key 写进 `spec_lock.page_charts`。
+
+常见选择：
+- 单系列 3-8 类对比 → `bar_chart`（>12 长标签用 `horizontal_bar_chart`，多系列用 `grouped_bar_chart`）
+- 累积趋势强调体量 → `area_chart`（≥3 系列用 `stacked_area_chart`，纯方向用 `line_chart`）
+- 估值拆分 / bridges → `waterfall_chart`
+- 资金 / 用户流向 → `sankey_chart`
+- 市场份额嵌套 → `treemap_chart`
+- 多维对比矩阵 → `heatmap_chart`
+- 竞争力多维评估 → `radar_chart`
+- 3 轴数据（x、y、size）→ `bubble_chart`
+
+模板按视觉结构命名，不是按业务模型（SWOT/BCG/Porter 等靠 summary 关键词匹配）。
+
+### Step 2: Executor 批量读模板 + 注入 CICC 配色
+
+生成第一个 SVG 前，批量读 `spec_lock.page_charts` 引用的所有模板 SVG（一次读全，不逐页重读，见引擎 executor-base.md §1.0）。
+
+**关键：模板当结构骨架，配色/字体按下面的映射表注入 CICC 规范，不照搬模板的 Tailwind 蓝绿琥珀。** 模板贡献布局结构（柱子位置、坐标轴、网格、图例），CICC 贡献皮肤。
+
+### CICC ↔ Tailwind 色角色映射表
+
+Executor 适配模板时，按角色替换色值/字体：
+
+| 模板里的角色 | Tailwind 色值 | → CICC 注入 | CICC 色值 |
+|---|---|---|---|
+| 第 1 数据系列（默认首选） | Blue `#3B82F6` / `#2563EB` | → CICC 主色 | `#640000` |
+| 第 2 数据系列 | Emerald `#10B981` / `#059669` | → CICC Gold | `#CBA97B` |
+| 第 3 数据系列 | Amber `#F59E0B` / `#D97706` | → CICC Orange | `#E99753` |
+| 第 4 数据系列 | Violet `#8B5CF6` / `#7C3AED` | → CICC Navy | `#1F497D` |
+| 第 5 数据系列 | Rose `#FB7185` / `#E11D48` | → CICC Blue-Gray | `#8A90A5` |
+| 图表大标题 / 数值标签 | `#0F172A` | → CICC Dark Gray | `#3B3B3B` |
+| 图表 sub-title | `#64748B` | → CICC Deep Red | `#640000`（按 §3 chart sub-title 规范） |
+| 副标题 / 坐标轴标签 | `#64748B` | → CICC Blue-Gray | `#8A90A5` |
+| 网格线 | `#E2E8F0` / `#E0E0E0` | → CICC Lt Gray | `#BEC0C2` |
+| 卡片背景 | `#F8FAFC` | → CICC 浅粉 tint | `#FFF5F5` |
+| 字体 | `-apple-system`/`BlinkMacSystemFont`/`Segoe UI` | → Arial / 黑体 | Arial（拉丁）/ 黑体（CJK） |
+
+**语义色保留，不替换**：达标/正面绿 `#10B981`、警告黄 `#F59E0B`、未达标/负面红 `#EF4444`——投研 PPT 里红绿是涨跌/达标的国际惯例，不该被 CICC 红覆盖。只有"数据系列装饰色"才走 CICC 映射。
+
+> 渐变跟着换：模板里 Blue 的 `linearGradient`（`#3B82F6`→`#2563EB`）换成 CICC 红渐变（如 `#640000`→`#8B0000`），保持渐变结构但用 CICC 色。
+
+### Step 3: 字体替换（必做）
+
+模板里 `-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif` 一律替换成 CICC 字体栈 `Arial, 黑体, sans-serif`（见 §3 Typography）。不替换会导致 SVG→PPTX 转换时字体回退、中文变方框。
+
+### Step 4: verify-charts 校准坐标
+
+含数据图表的 deck，SVG 生成后、Post-processing 前，跑引擎的 `verify-charts` workflow（`workflows/verify-charts.md`）校准数据-像素映射。AI 适配模板时仍可能引入 10-50px 坐标误差，verify-charts 消除这类误差。无图表页跳过。
+
+### 适配 vs 从零的判断
+
+- **有对应模板**（71 个里能匹配）→ 必须用模板 + CICC 注入，不从零手写
+- **模板覆盖不到的特殊图**（极少）→ 才允许从零手写 SVG，但配色/字体仍守 CICC 规范
 
 ---
 
@@ -403,22 +430,22 @@ Framework/大纲只是骨架，**内容填充必须通过搜索补充实质性�
 
 数据缺乏时：
 1. **先搜索** — 用 §9.5 搜索工具链找相关数据
-2. **从数据建图** — 在 SVG 中用手工 SVG 图表生成柱状图/折线图/饼图
-3. **dianjing_mcp 数据建图** — 行业指标、估值数据、盈利预测 → 直接绘图，这是最高质量来源
+2. **从数据建图** — 按 §9.6 图表模板适配流程：查 `charts_index.json` 选模板、注入 CICC 配色（不从零手写 SVG）
+3. **专有数据源建图** — 行业指标、估值数据、盈利预测 → 按 §9.6 模板建图，这是最高质量来源
 4. **无数据时** — 创建结构化对比表或量化框架（市场规模 waterfall、竞争评分矩阵）
 
 ### JS 动态渲染网站的数据获取
 
 很多高质量数据网站（如 Artificial Analysis）内容是 JS 动态渲染的，无法直接爬取 HTML：
 1. **先尝试搜索公开数据** — web search 搜 `[site] + data / benchmark / results`，看是否有 API 或公开 CSV
-2. **提示用户截图** — 告知用户"XX 网站的数据很有价值，建议打开截图给我"，用户截图后用 GLM-5V-Turbo 解析
-3. **解析截图插入 PPT** — 用 GLM-5V-Turbo 识别截图中的数据和图表结构，转成 SVG 图表插入
+2. **提示用户截图** — 告知用户"XX 网站的数据很有价值，建议打开截图给我"，用户截图后用视觉模型解析
+3. **解析截图插入 PPT** — 用视觉模型识别截图中的数据和图表结构，转成 SVG 图表插入
 
 ### 图片插入规范
 
 - **严禁调整长宽比** — 图片变矮/变胖是 PPT 最常见的丑化原因
 - 图片必须保持原始 aspect ratio，通过裁剪或留白适配
-- 如果图片尺寸无法适配布局，用 GLM-5V-Turbo 判断后做轻微裁剪
+- 如果图片尺寸无法适配布局，用视觉模型判断后做轻微裁剪
 - 可爬取的公开数据源（如 SWE Bench 排行榜、Artificial Analysis API）优先于截图
 
 ---
@@ -497,7 +524,7 @@ Framework/大纲只是骨架，**内容填充必须通过搜索补充实质性�
 
 ### 闭合图必须视觉闭合
 
-飞轮、循环、回路等"闭合"类示意图，箭头必须形成**完整闭环**。如果只有单向推进箭头，没有返回箭头，那就不是飞轮——Roger 会说"怎么叫飞轮？"。
+飞轮、循环、回路等"闭合"类示意图，箭头必须形成**完整闭环**。如果只有单向推进箭头，没有返回箭头，那就不是飞轮——会被质疑："怎么叫飞轮？"。
 
 具体执行：
 - 画出所有节点后，追踪箭头路径，确保最后一个节点有箭头回到第一个节点
@@ -618,7 +645,7 @@ Framework/大纲只是骨架，**内容填充必须通过搜索补充实质性�
 
 ---
 
-## 14. Visual QA Protocol (Kimi K2.6 via DashScope)
+## 14. Visual QA Protocol（多模型适配）
 
 在 ppt-master Post-processing & Export（Step 7）完成后、交付前，执行视觉质检。
 
@@ -626,20 +653,24 @@ Framework/大纲只是骨架，**内容填充必须通过搜索补充实质性�
 
 过往错误：用宽松 prompt 给出 60+/70 分，但实际输出有大量布局缺陷。根本原因是 QA prompt 问的是"有没有严重问题"（二元判断），而不是"是否达到专业投研PPT水准"（质量判断）。**不能把"没有FAIL"等同于"质量达标"。**
 
-### 为什么用 Kimi K2.6 而不是 GLM-5V-Turbo
+### 选择视觉模型
 
-2026年6月实测结论：
-- **MMMU-Pro benchmark**：Kimi K2.5 得分 78.5，Qwen2.5-VL-72B 只有 51.1，Kimi 视觉能力全面碾压
-- **Zhipu API Key 经常认证失败**（401），DashScope API 稳定可用
-- **Kimi K2.6 支持 vision**（base64图片输入），时延 ~10-20s/页
-- GLM-5V-Turbo 是思考模型，需读 reasoning_content，解析复杂；Kimi 直接返回 content
+Visual QA 必须用**支持图片输入的多模态视觉模型**，挑当前环境可用的、视觉能力最强的那个。优先级：
+
+1. **当前环境最强的视觉模型**——按你接入的 API/MCP 里视觉 benchmark 最高的选（如 GPT-4o/5、Gemini 2.x、Claude Opus/Sonnet、Kimi K2.6、MiniMax-VL、Qwen2.5-VL 等支持 image_url 输入的模型）
+2. 多个可用时，选视觉理解 benchmark（MMMU-Pro 等）得分最高的
+3. 都没有视觉模型时，降级为人工肉眼逐页核对（不要跳过 QA）
+
+不要绑死某一个模型或某一家 API——使用者环境不同，按可用性挑最强的。
 
 ### API 配置
 
+用所选视觉模型的 OpenAI-compatible chat/completions 接口。endpoint、key、model 都从环境变量读，不硬编码：
+
 ```
-Endpoint: https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
-API Key: 从环境变量 DASHSCOPE_API_KEY 读取（存于 ~/.ppt-master/.env，勿硬编码进文件）
-Model: kimi-k2.6
+Endpoint: $VISION_QA_ENDPOINT   （如 https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions）
+API Key:  从环境变量 $VISION_QA_API_KEY 读取（存于 ~/.ppt-master/.env，勿硬编码进文件）
+Model:    $VISION_QA_MODEL      （如 kimi-k2.6 / gpt-4o / gemini-2.x / MiniMax-VL 等，按环境挑最强）
 ```
 
 ### Step 1: SVG → PNG（关键：字体替换）
@@ -700,7 +731,7 @@ img_b64 = base64.b64encode(buf.getvalue()).decode()
 import os, requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# DASHSCOPE_API_KEY 从环境变量读取，存于 ~/.ppt-master/.env，勿硬编码进文件
+# VISION_QA_MODEL / VISION_QA_API_KEY / VISION_QA_ENDPOINT 从环境变量读取，存于 ~/.ppt-master/.env
 qa_prompt = '''你是投研PPT视觉质检专家。严格质检此PPT，只报问题：
 1.文字溢出 2.对齐 3.空白>20% 4.图表可读性 5.CICC Logo/分隔线 6.文字缺失
 JSON:{"issues":[{"type":"","description":"","severity":"high/medium/low"}]}
@@ -709,7 +740,7 @@ JSON:{"issues":[{"type":"","description":"","severity":"high/medium/low"}]}
 def qa_one(slide_num):
     # ... compress image (Step 2) ...
     payload = {
-        "model": "kimi-k2.6",
+        "model": os.environ["VISION_QA_MODEL"],
         "messages": [{"role": "user", "content": [
             {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}},
             {"type": "text", "text": qa_prompt}
@@ -717,11 +748,11 @@ def qa_one(slide_num):
         "max_tokens": 512, "temperature": 0.1
     }
     headers = {
-        "Authorization": f"Bearer {os.environ['DASHSCOPE_API_KEY']}",
+        "Authorization": f"Bearer {os.environ['VISION_QA_API_KEY']}",
         "Content-Type": "application/json"
     }
     resp = requests.post(
-        "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+        os.environ["VISION_QA_ENDPOINT"],
         headers=headers, json=payload, timeout=90
     )
     # ... parse JSON response ...
@@ -733,7 +764,7 @@ with ThreadPoolExecutor(max_workers=5) as executor:
         # ... process result ...
 ```
 
-**为什么 5 线程**：DashScope API 限流窗口内 5 个并发稳定，10+ 开始有 429 错误。
+**为什么 5 线程**：视觉模型 API 限流窗口内 5 个并发稳定，10+ 开始有 429 错误。
 
 ### Step 4: 严格版 QA Prompt（7维度）
 
@@ -783,7 +814,7 @@ FAIL项详细说明
 - **增量修改** — 只修改指定页/元素，不重新生成整个 deck
 - 常见修订：换配色、改文字、增删页面、调整布局/图表类型
 - 修改后仅对修改页重跑 Quality Gate（L1 + L2）
-- 修改后仅对修改页重跑 Visual QA（GLM-5V-Turbo）
+- 修改后仅对修改页重跑 Visual QA
 - 用户说"重新做"或"从零开始"时才全量重新生成
 
 ---
@@ -838,7 +869,7 @@ ppt-master 会自动将品牌模板的颜色、字体、Logo 注入项目，Roge
   │   └─ svg_to_pptx.py
   │
   ├─ Phase 4: Visual QA（并行，sub-agent）
-  │   └─ 每页1个sub-agent，并行跑GLM-5V-Turbo QA
+  │   └─ 每页1个sub-agent，并行跑视觉模型 QA
   │
   └─ Phase 5: 跨页一致性检查（串行，主agent）
       ├─ 读取所有已修改SVG
@@ -970,14 +1001,14 @@ python3 finalize_svg.py <project_dir>
 python3 svg_to_pptx.py <project_dir>
 ```
 
-### Phase 4: Visual QA — Kimi K2.6 并行5线程
+### Phase 4: Visual QA — 视觉模型并行5线程
 
-**严肃机构标准**：用 Kimi K2.6 (DashScope API) 并行做 Visual QA，5个并发线程。
+**严肃机构标准**：用当前环境最强视觉模型并行做 Visual QA，5个并发线程。
 
 QA 执行流程：
 1. SVG → PNG：替换 SimHei→Heiti SC，cairosvg 渲染 2x scale
 2. PNG 压缩：800px JPEG quality=80（原始 PNG 太大会导致 API 超时）
-3. 并行调用 kimi-k2.6，5线程，每页 ~10-20s，23页总计 ~60-90s
+3. 并行调用视觉模型，5线程，每页 ~10-20s，23页总计 ~60-90s
 4. 解析 JSON 结果，汇总 High/Medium/Low 问题
 
 **核心教训**：
@@ -1007,7 +1038,7 @@ QA 执行流程：
 | 场景 | 串行耗时 | 并行耗时 | 加速比 |
 |------|---------|---------|-------|
 | 9页SVG修改 | ~9轮交互 | ~2轮（5+4） | ~4.5x |
-| 23页Visual QA (Kimi K2.6) | ~460s (20s×23) | ~62s (5线程) | ~7x |
+| 23页Visual QA | ~460s (20s×23) | ~62s (5线程) | ~7x |
 | 修改+QA合计 | ~18轮 | ~6轮 | ~3x |
 
 ---
@@ -1244,7 +1275,7 @@ LLM默认先写文字（这是它擅长的），然后把图表当作"附件"塞
 ## 24. Render Consistency — card group 坐标丢失（2026-06-21 踩坑，影响深远）
 
 ### 现象
-SVG 预览界面（浏览器按坐标精确渲染）非常漂亮，但导出到 PPTX/PDF/WPS 后文字整体**向上向右偏移、行距挤、格子没填满、跨 card 不对齐**。Roger 称之为"渲染不一致"。
+SVG 预览界面（浏览器按坐标精确渲染）非常漂亮，但导出到 PPTX/PDF/WPS 后文字整体**向上向右偏移、行距挤、格子没填满、跨 card 不对齐**。称之为"渲染不一致"。
 
 ### 根因
 svg_to_pptx 的 `convert_card_group` 分支（rect+text 卡片合并成单个 shape）默认**丢弃了 text 元素的 x/y 坐标**，四处在丢失信息：
